@@ -7,6 +7,8 @@
         body {
             background-color: black;
             color: white;
+             margin: 0px;
+            padding: 0px;
         }
 
         canvas {
@@ -22,6 +24,7 @@
             border: 1px solid white;
         }
     </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 </head>
 <body>
     <h1>Medical Imaging</h1>
@@ -49,6 +52,18 @@
 </body>
 </html>
 <script>
+    $( "imageCanvas" ).click(function() {
+          alert( "Handler for .click() called." );
+     });
+     // get the X and Y coordinates from the mouse
+     function getMousePos(canvas, evt) {
+        var rect = canvas.getBoundingClientRect();
+        return {
+          x: evt.clientX - rect.left,
+          y: evt.clientY - rect.top
+        };
+      }
+          
     //Load Image onto Canvas
     var imageLoader = document.getElementById('imageLoader');
     imageLoader.addEventListener('change', handleImage, false);
