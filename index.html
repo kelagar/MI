@@ -17,6 +17,10 @@
             margin: 25px;
             align-content: inherit;
         }
+
+        table {
+            border: 1px solid white;
+        }
     </style>
 </head>
 <body>
@@ -25,10 +29,23 @@
     <canvas id="imageCanvas"></canvas>
     <input type="file" id="imageLoader" name="imageLoader" />
     <!--<button onclick="grayscale()">Contrast Image</button>-->
-    <button onclick="threshold()">Threshold Image</button>
-    <button onclick="imbinarize()">Binarize Image</button>
-    Sharpen: <input type=range id=mix min=0 max=100 value=20 onchange="update()">
-
+    <table align="right">
+        <tr>
+            <th> Functions</th>
+        </tr>
+        <tr>
+            <td> <button onclick="threshold()">Threshold Image</button></td>
+        </tr>
+        <tr>
+            <td><button onclick="imbinarize()">Binarize Image</button></td>
+        </tr>
+        <tr>
+            <td><button onclick="undo()">Undo</button></td>
+        </tr>
+        <tr>
+            <td>Sharpen:<input type=range id=mix min=0 max=100 value=20 onchange="update()"></td>
+        </tr>
+    </table>
 </body>
 </html>
 <script>
@@ -37,8 +54,8 @@
     imageLoader.addEventListener('change', handleImage, false);
     var canvas = document.getElementById('imageCanvas');
     var ctx = canvas.getContext('2d');
-
-
+    var browsedimagedata = [];
+    var uploadcount = 0;
     function handleImage(e) {
         var reader = new FileReader();
         reader.onload = function (event) {
@@ -49,27 +66,25 @@
                 ctx.drawImage(img, 0, 0);
             }
             img.src = event.target.result;
+            browsedimagedata.push(img.src);
+            uploadcount++;
         }
         reader.readAsDataURL(e.target.files[0]);
     }
-
     //test
     //offScreen = document.createElement('canvas'),
-   // offctx = offScreen.getContext('2d'),
-
+    // offctx = offScreen.getContext('2d'),
     /// as we need pixel access to apply convolution we
     /// need to get around CORS:
-   // img.crossOrigin = 'anonymous';
-
+    // img.crossOrigin = 'anonymous';
     /// when image is loaded step-down the downscaling
-   // img.onload = resize;
-
+    // img.onload = resize;
     /// sharpen image:
     /// USAGE:
     ///    sharpen(context, width, height, mixFactor)
     ///  mixFactor: [0.0, 1.0]
+    //binarization of image (threshold)
 
-        //binarization of image (threshold) 
     function imbinarize() {
         var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         var data = imageData.data;
@@ -82,23 +97,24 @@
             // blue
             data[i + 2] = brightness;
         }
-
         for (var i = 0; i < data.length; i++) {
             if (data[i] < 128) {
-                data[i] = 0;              
-               
-            }
-           else {
-                data[i] = 255;
-                
-          }
-        }
+                data[i] = 0;
 
+            }
+            else {
+                data[i] = 255;
+
+            }
+        }
         // overwrite original image
         ctx.putImageData(imageData, 0, 0);
+        if (logtoprocesslist == true) {
+            processingfunctions.push(imbinarize);
+        }
     }
-
-
+    var sharpenparameters = []; // gloabl sharpen image function parameter storage for undo functionality.
+    var sharpencall=0; // global sharpen call lets us know how many times the sharpen function has been called
     function sharpen(ctx, w, h, mix) {
 
         var weights = [0, -1, 0, -1, 5, -1, 0, -1, 0],
@@ -108,13 +124,9 @@
             dstBuff = dstData.data,
             srcBuff = ctx.getImageData(0, 0, w, h).data,
             y = h;
-
         while (y--) {
-
             x = w;
-
             while (x--) {
-
                 var sy = y,
                     sx = x,
                     dstOff = (y * w + x) * 4,
@@ -122,18 +134,13 @@
                     g = 0,
                     b = 0,
                     a = 0;
-
                 for (var cy = 0; cy < katet; cy++) {
                     for (var cx = 0; cx < katet; cx++) {
-
                         var scy = sy + cy - half;
                         var scx = sx + cx - half;
-
                         if (scy >= 0 && scy < h && scx >= 0 && scx < w) {
-
                             var srcOff = (scy * w + scx) * 4;
                             var wt = weights[cy * katet + cx];
-
                             r += srcBuff[srcOff] * wt;
                             g += srcBuff[srcOff + 1] * wt;
                             b += srcBuff[srcOff + 2] * wt;
@@ -141,65 +148,88 @@
                         }
                     }
                 }
-
                 dstBuff[dstOff] = r * mix + srcBuff[dstOff] * (1 - mix);
                 dstBuff[dstOff + 1] = g * mix + srcBuff[dstOff + 1] * (1 - mix);
                 dstBuff[dstOff + 2] = b * mix + srcBuff[dstOff + 2] * (1 - mix)
                 dstBuff[dstOff + 3] = srcBuff[dstOff + 3];
             }
         }
-
         ctx.putImageData(dstData, 0, 0);
+        if (logtoprocesslist == true) {
+            processingfunctions.push(sharpen);
+            sharpenparameters.push(this.ctx, this.w, this.h, this.mix);
+            sharpencall++;
+        }
     }
-
     /// naive and non-efficient implementation of update, but
     /// do illustrate the impact of sharpen after a downsample
     function resize() {
-
         /// set canvas size proportional to original image
         canvas.height = canvas.width * (img.height / img.width);
-
         /// set off-screen canvas/sharpening source to same size
         offScreen.width = canvas.width;
         offScreen.height = canvas.height;
-
         /// step 1 in down-scaling
         var oc = document.createElement('canvas'),
             octx = oc.getContext('2d');
-
         oc.width = img.width * 0.5;
         oc.height = img.height * 0.5;
         octx.drawImage(img, 0, 0, oc.width, oc.height);
-
         /// step 2
         octx.drawImage(oc, 0, 0, oc.width * 0.5, oc.height * 0.5);
-
         /// draw final result to screen canvas
         ctx.drawImage(oc, 0, 0, oc.width * 0.5, oc.height * 0.5,
         0, 0, canvas.width, canvas.height);
-
         /// copy to off-screen to use as source for shapening
         offctx.drawImage(canvas, 0, 0);
-
         /// apply sharpening convolution
         update();
     }
-
     /// adjustable sharpening - update cached source
     function update() {
         ctx.drawImage(offScreen, 0, 0);
         sharpen(ctx, canvas.width, canvas.height, parseInt(mix.value) * 0.01);
     }
-
     //test
-
-
     //Contrast Image
+
+    /*
+    undo() is used to go back to the previous image state per function call.
+    */
+    var processingfunctions = [];
+    var logtoprocesslist = true;
+    function undo() {
+        // start with original image
+        var img = new Image();
+        img.onload = function () {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+        }
+        img.src=browsedimagedata[uploadcount];
+        
+        for (var i = 0; i < processingfunctions.length - 1; i++) {
+            logtoprocesslist = false;
+            if (processingfunctions[i] == sharpen) {
+                var sharpencallindexed = (sharpencall * 4) - 1;
+                sharpen(sharpenparameters[sharpencallindexed], sharpenparameters[sharpencallindexed - 1], sharpenparameters[sharpencallindexed - 2], sharpenparameters[sharpencallindexed - 3]);
+                sharpencall--;
+            }
+            processingfunctions[i]();
+        }
+        logtoprocesslist = true;
+        processingfunctions.pop();
+
+    }
+
+
+
     function grayscale() {
         var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         var data = imageData.data;
+
         for (var i = 0; i < data.length; i += 4) {
-            var brightness = (data[i] + data[i + 1]+ data[i + 2])/3;
+            var brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
             // red
             data[i] = brightness;
             // green
@@ -207,12 +237,14 @@
             // blue
             data[i + 2] = brightness;
         }
-
         // overwrite original image
         ctx.putImageData(imageData, 0, 0);
+        if (logtoprocesslist == true) {
+            processingfunctions.push(grayscale);
+        }
+
 
     }
-
     //Threshold Image
     function threshold() {
         var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -223,25 +255,25 @@
             data[i + 1] = factor * (data[i + 1] - 128) + 128;
             data[i + 2] = factor * (data[i + 2] - 128) + 128;
         }
-
         // overwrite original image
         ctx.putImageData(imageData, 0, 0);
+        if (logtoprocesslist == true) {
+            processingfunctions.push(threshold);
+        }
     }
-
     function texture() {
         // convert the image to a texture
         var image = document.getElementById('imageLoader');
         var texture = canvas.texture(image);
-
         // apply the ink filter
         canvas.draw(texture).ink(0.25).update();
-
         // replace the image with the canvas
         image.parentNode.insertBefore(canvas, image);
         image.parentNode.removeChild(image);
+        // if (logtoprocesslist == true) {
+        //   processingfunctions.push(texture);
+        //}
     }
-
-
 </script>
 
 
