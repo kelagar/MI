@@ -1,19 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title></title>
-    <meta charset="utf-8" />
+    <title>webMIS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/lib/w3.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
     <style media="screen" type="text/css">
         body {
-            background-color: black;
+            background-color: #121010;
             color: white;
         }
 
-        canvas {
-            background-color: white;
+        #imageCanvas {
+            background-color:black;
             width: 400px;
             height: 400px;
-            border: 10px solid green;
+            margin: 25px;
+            align-content: inherit;
+        }
+        #undoCanvas {
+            background-color:black;
+            width: 400px;
+            height: 400px;
             margin: 25px;
             align-content: inherit;
         }
@@ -21,31 +30,81 @@
         table {
             border: 1px solid white;
         }
+
+.button {
+    position: relative;
+    background-color: #121010;
+    border: none;
+    font-size: 18px;
+    color: #FFFFFF;
+    padding: 5px;
+    width: 200px;
+    text-align: center;
+    -webkit-transition-duration: 0.4s; /* Safari */
+    transition-duration: 0.4s;
+    text-decoration: none;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.button:hover {
+    background-color: #FF0000;
+    color: white;
+}
+
+
+
+   h1.web { margin:0; padding:0; color:#FF0000;font-weight:bold;font-family:Tahoma;font-size:40px }   
+    span.MIS { margin:0; padding:0; color:white;font-weight:bold;font-family:Calibri;font-size:60px }
+    h2.title{margin:0; padding:0;}
+
     </style>
 </head>
 <body>
-    <h1>Medical Imaging</h1>
-    <label>Choose Image to edit:</label><br />
-    <canvas id="imageCanvas"></canvas>
-    <input type="file" id="imageLoader" name="imageLoader" />
-    <!--<button onclick="grayscale()">Contrast Image</button>-->
-    <table align="right">
-        <tr>
-            <th> Functions</th>
-        </tr>
-        <tr>
-            <td> <button onclick="threshold()">Threshold Image</button></td>
-        </tr>
-        <tr>
-            <td><button onclick="imbinarize()">Binarize Image</button></td>
-        </tr>
-        <tr>
-            <td><button onclick="undo()">Undo</button></td>
-        </tr>
-        <tr>
-            <td>Sharpen:<input type=range id=mix min=0 max=100 value=20 onchange="update()"></td>
-        </tr>
-    </table>
+    <div class="w3-container">
+        <h1 class="web">web<span class="MIS">MIS</span></h1>
+        <h2 class="title" style="color:#9a9797">Web-based Medical Imaging Software</h2>
+        <div style="background-color:black; float:left; width:1275px;height:450px;border:1px solid #000;">
+            <div align="center" id="paint">
+                    <canvas id="imageCanvas"></canvas>
+
+
+                    <canvas id="undoCanvas"></canvas>
+                </div>
+        </div>
+        <!--<button onclick="grayscale()">Contrast Image</button>-->
+
+        <table style="float:right">
+            <tr>
+                <th style="font-size:28px">Tools</th>
+            </tr>
+            <tr>
+                <td><button class="button" onclick="threshold()"><i class="w3-margin-left fa fa-cog"></i><br />Threshold Image</button></td>
+            </tr>
+            <tr>
+                <td><button class="button" onclick="imbinarize()"><i class="w3-margin-left fa fa-adjust"></i><br />Binarize Image</button></td>
+                
+            </tr>
+            <tr>
+                <td><button class="button" onclick="draw()"><i class="w3-margin-left fa fa-pencil"></i><br />Draw</button></td>
+            </tr>
+            <tr>
+                <td><button class="button" onclick="undo()"><i class="w3-margin-left fa fa-undo"></i><br />Undo</button></td>
+            </tr>
+            <tr>
+                <td>Sharpen:<input type=range id=mix min=0 max=100 value=20 onchange="update()"></td>
+            </tr>
+        </table>
+
+        <div align="center">
+
+        </div>
+        <div style="float:left">
+            <p>Choose Image to edit:</p>
+            <input class="fa fa-upload" aria-hidden="true" type="file" id="imageLoader" name="imageLoader" />
+        </div>
+
+        </div>
 </body>
 </html>
 <script>
@@ -53,6 +112,8 @@
     var imageLoader = document.getElementById('imageLoader');
     imageLoader.addEventListener('change', handleImage, false);
     var canvas = document.getElementById('imageCanvas');
+    var clone = document.getElementById('undoCanvas');
+    var ctx_clone = clone.getContext('2d');
     var ctx = canvas.getContext('2d');
     var browsedimagedata = [];
     var uploadcount = 0;
@@ -62,8 +123,11 @@
             var img = new Image();
             img.onload = function () {
                 canvas.width = img.width;
+                clone.width = img.width;
                 canvas.height = img.height;
+                clone.height = img.height;
                 ctx.drawImage(img, 0, 0);
+                ctx_clone.drawImage(img, 0, 0);
             }
             img.src = event.target.result;
             browsedimagedata.push(img.src);
@@ -85,6 +149,98 @@
     ///  mixFactor: [0.0, 1.0]
     //binarization of image (threshold)
 
+
+    //Drawing function
+    function draw() {
+
+
+               var letsdraw = false;
+
+ 
+            var canvasOffset = $('#imageCanvas').offset();
+
+            $('#imageCanvas').mousemove(function (e) {
+                if (letsdraw === true) {
+                    ctx.lineTo(e.pageX - canvasOffset.left, e.pageY - canvasOffset.top);
+                    ctx.stroke();
+                }
+            });
+
+            $('#imageCanvas').mousedown(function (e) {
+                // setup all of the properties for your line on mousedown, not mousemove
+                letsdraw = true;
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 10;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(e.pageX - canvasOffset.left, e.pageY - canvasOffset.top);
+            });
+
+            $(window).mouseup(function () {
+                // bind to the window mouse up, that way if you mouse up and you're not over 
+                // the canvas you'll still get the release of the drawing.
+                letsdraw = false;
+            });
+        };
+        //$('#imageCanvas').mousedown(function (e) {
+        //    var mouseX = e.pageX - this.offsetLeft;
+        //    var mouseY = e.pageY - this.offsetTop;
+
+        //    paint = true;
+        //    addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+        //    redraw();
+        //});
+
+        //$('#imageCanvas').mousemove(function (e) {
+        //    if (paint) {
+        //        addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
+        //        redraw();
+        //    }
+        //});
+
+        //$('#imageCanvas').mouseup(function (e) {
+        //    paint = false;
+        //});
+
+        //$('#imageCanvas').mouseleave(function (e) {
+        //    paint = false;
+        //});
+
+        //var clickX = new Array();
+        //var clickY = new Array();
+        //var clickDrag = new Array();
+        //var paint;
+
+        //function addClick(x, y, dragging) {
+        //    clickX.push(x);
+        //    clickY.push(y);
+        //    clickDrag.push(dragging);
+        //}
+
+        //function redraw() {
+        //    //ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clears the canvas
+
+        //    ctx.strokeStyle = "rgba(247, 2, 2, 0.66)";
+        //    ctx.lineJoin = "round";
+        //    ctx.lineWidth = 30;
+           
+           
+
+        //    for (var i = 0; i < clickX.length; i++) {
+        //        ctx.beginPath();
+        //        if (clickDrag[i] && i) {
+        //            ctx.moveTo(clickX[i - 1], clickY[i - 1]);
+        //        } else {
+        //            ctx.moveTo(clickX[i] - 1, clickY[i]);
+        //        }
+        //        ctx.lineTo(clickX[i], clickY[i]);
+        //        ctx.closePath();
+        //        ctx.stroke();
+        //    }
+        //}
+
+
+    
     function imbinarize() {
         var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         var data = imageData.data;
@@ -115,12 +271,12 @@
     }
     var sharpenparameters = []; // gloabl sharpen image function parameter storage for undo functionality.
     var sharpencall=0; // global sharpen call lets us know how many times the sharpen function has been called
-    function sharpen(ctx, w, h, mix) {
+    function sharpen() {
 
         var weights = [0, -1, 0, -1, 5, -1, 0, -1, 0],
             katet = Math.round(Math.sqrt(weights.length)),
             half = (katet * 0.5) | 0,
-            dstData = ctx.createImageData(w, h),
+            dstData = ctx.ImageData(can.width, canvas.height),
             dstBuff = dstData.data,
             srcBuff = ctx.getImageData(0, 0, w, h).data,
             y = h;
@@ -148,9 +304,9 @@
                         }
                     }
                 }
-                dstBuff[dstOff] = r * mix + srcBuff[dstOff] * (1 - mix);
-                dstBuff[dstOff + 1] = g * mix + srcBuff[dstOff + 1] * (1 - mix);
-                dstBuff[dstOff + 2] = b * mix + srcBuff[dstOff + 2] * (1 - mix)
+                dstBuff[dstOff] = r * 10 + srcBuff[dstOff] * (1 - 10);
+                dstBuff[dstOff + 1] = g * 10 + srcBuff[dstOff + 1] * (1 - 10);
+                dstBuff[dstOff + 2] = b * 10 + srcBuff[dstOff + 2] * (1 - 10)
                 dstBuff[dstOff + 3] = srcBuff[dstOff + 3];
             }
         }
@@ -196,29 +352,10 @@
     /*
     undo() is used to go back to the previous image state per function call.
     */
-    var processingfunctions = [];
-    var logtoprocesslist = true;
+
     function undo() {
-        // start with original image
-        var img = new Image();
-        img.onload = function () {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-        }
-        img.src=browsedimagedata[uploadcount];
-        
-        for (var i = 0; i < processingfunctions.length - 1; i++) {
-            logtoprocesslist = false;
-            if (processingfunctions[i] == sharpen) {
-                var sharpencallindexed = (sharpencall * 4) - 1;
-                sharpen(sharpenparameters[sharpencallindexed], sharpenparameters[sharpencallindexed - 1], sharpenparameters[sharpencallindexed - 2], sharpenparameters[sharpencallindexed - 3]);
-                sharpencall--;
-            }
-            processingfunctions[i]();
-        }
-        logtoprocesslist = true;
-        processingfunctions.pop();
+        var imageData = ctx_clone.getImageData(0, 0, clone.width, clone.height);
+        ctx.putImageData(imageData, 0, 0);
 
     }
 
@@ -275,5 +412,4 @@
         //}
     }
 </script>
-
 
