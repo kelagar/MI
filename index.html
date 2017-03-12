@@ -3,26 +3,35 @@
 <head>
     <title>webMIS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/lib/w3.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <!--<link rel="stylesheet" href="/lib/w3.css">-->
+    <!--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>-->
+    <link rel="stylesheet" href="css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="css/jcrop.custom.css" />
+    <script src="script/jquery.min.js"></script>
+    <script src="script/jcrop.custom.js"></script>
     <style media="screen" type="text/css">
         body {
             background-color: #121010;
             color: white;
         }
 
-        #imageCanvas {
-            background-color:black;
-            width: 400px;
-            height: 400px;
+        #imageCanvas, #canvasThumbResult {
+            background-color: black;
+            /*width: 400px;
+        height: 400px;*/
+            max-width: 400px;
+            max-height: 400px;
             margin: 25px;
             align-content: inherit;
         }
+
         #undoCanvas {
-            background-color:black;
-            width: 400px;
-            height: 400px;
+            background-color: black;
+            /*width: 400px;
+        height: 400px;*/
+            max-width: 400px;
+            max-height: 400px;
             margin: 25px;
             align-content: inherit;
         }
@@ -31,33 +40,54 @@
             border: 1px solid white;
         }
 
-.button {
-    position: relative;
-    background-color: #121010;
-    border: none;
-    font-size: 18px;
-    color: #FFFFFF;
-    padding: 5px;
-    width: 200px;
-    text-align: center;
-    -webkit-transition-duration: 0.4s; /* Safari */
-    transition-duration: 0.4s;
-    text-decoration: none;
-    overflow: hidden;
-    cursor: pointer;
-}
+        .button {
+            position: relative;
+            background-color: #121010;
+            border: none;
+            font-size: 18px;
+            color: #FFFFFF;
+            padding: 5px;
+            width: 200px;
+            text-align: center;
+            -webkit-transition-duration: 0.4s; /* Safari */
+            transition-duration: 0.4s;
+            text-decoration: none;
+            overflow: hidden;
+            cursor: pointer;
+        }
 
-.button:hover {
-    background-color: #FF0000;
-    color: white;
-}
+            .button:hover {
+                background-color: #FF0000;
+                color: white;
+            }
 
+        #crop:hover {
+            background-color: rgba(16, 255, 0, 0.58);
+            color: white;
+        }
 
+        h1.web {
+            margin: 0;
+            padding: 0;
+            color: #FF0000;
+            font-weight: bold;
+            font-family: Tahoma;
+            font-size: 40px;
+        }
 
-   h1.web { margin:0; padding:0; color:#FF0000;font-weight:bold;font-family:Tahoma;font-size:40px }   
-    span.MIS { margin:0; padding:0; color:white;font-weight:bold;font-family:Calibri;font-size:60px }
-    h2.title{margin:0; padding:0;}
+        span.MIS {
+            margin: 0;
+            padding: 0;
+            color: white;
+            font-weight: bold;
+            font-family: Calibri;
+            font-size: 60px;
+        }
 
+        h2.title {
+            margin: 0;
+            padding: 0;
+        }
     </style>
 </head>
 <body>
@@ -66,11 +96,11 @@
         <h2 class="title" style="color:#9a9797">Web-based Medical Imaging Software</h2>
         <div style="background-color:black; float:left; width:1275px;height:450px;border:1px solid #000;">
             <div align="center" id="paint">
-                    <canvas id="imageCanvas"></canvas>
-
-
-                    <canvas id="undoCanvas"></canvas>
-                </div>
+                <canvas id="imageCanvas"></canvas>
+                <canvas id="undoCanvas"></canvas>
+                <image id="dummy_image" style="max-width:400px;max-height:400px;display:none;" />
+                <image id="temp_image" style="display:none" />
+            </div>
         </div>
         <!--<button onclick="grayscale()">Contrast Image</button>-->
 
@@ -83,17 +113,32 @@
             </tr>
             <tr>
                 <td><button class="button" onclick="imbinarize()"><i class="w3-margin-left fa fa-adjust"></i><br />Binarize Image</button></td>
-                
             </tr>
             <tr>
-                <td><button class="button" onclick="draw()"><i class="w3-margin-left fa fa-pencil"></i><br />Draw</button></td>
+                <td><button class="button draw" onclick="draw()"><i class="w3-margin-left fa fa-pencil"></i><br />Draw</button></td>
+            </tr>
+            <tr>
+                <td><button class="button" onclick="cropImage()"><i class="w3-margin-left fa fa-scissors"></i><br />Crop Image</button></td>
+            </tr>
+            <tr class="crop_control" style="display:none;">
+                <td>
+                    <button class="button" type="button" id="crop" name="crop" style="width:49%"><i class="w3-margin-left fa fa-check"></i><br />Confirm</button>
+                    <button class="button" type="button" id="cancel" name="cancel" style="width:49%"><i class="w3-margin-left fa fa-times"></i><br />Cancel</button>
+                </td>
+            </tr>
+            <tr>
+                <td><button class="button floodFill" onclick="floodFill()" style="display:none;"><i class="w3-margin-left fa fa-tint"></i><br />Flood Fill</button></td>
             </tr>
             <tr>
                 <td><button class="button" onclick="undo()"><i class="w3-margin-left fa fa-undo"></i><br />Undo</button></td>
             </tr>
             <tr>
-                <td>Sharpen:<input type=range id=mix min=0 max=100 value=20 onchange="update()"></td>
+                <td><button class="button" onclick="download()"><i class="w3-margin-left fa fa-download"></i><br />download</button></td>
             </tr>
+            <tr>
+                <td>Sharpen:<input type='range' id='mix' min=0 max=100 value='20' onchange="update()"></td>
+            </tr>
+            
         </table>
 
         <div align="center">
@@ -101,22 +146,23 @@
         </div>
         <div style="float:left">
             <p>Choose Image to edit:</p>
-            <input class="fa fa-upload" aria-hidden="true" type="file" id="imageLoader" name="imageLoader" />
+            <input class="fa fa-upload" aria-hidden="true" type="file" id="imageLoader" name="imageLoader" accept="image/*" />
         </div>
-
-        </div>
+    </div>
 </body>
 </html>
 <script>
     //Load Image onto Canvas
     var imageLoader = document.getElementById('imageLoader');
     imageLoader.addEventListener('change', handleImage, false);
-    var canvas = document.getElementById('imageCanvas');
+	var canvas = document.getElementById('imageCanvas');
     var clone = document.getElementById('undoCanvas');
     var ctx_clone = clone.getContext('2d');
     var ctx = canvas.getContext('2d');
     var browsedimagedata = [];
     var uploadcount = 0;
+	var imgratioY;
+	var imgratioX;
     function handleImage(e) {
         var reader = new FileReader();
         reader.onload = function (event) {
@@ -129,10 +175,12 @@
                 ctx.drawImage(img, 0, 0);
                 ctx_clone.drawImage(img, 0, 0);
             }
-            img.src = event.target.result;
+			img.src = event.target.result;
             browsedimagedata.push(img.src);
+			$("#dummy_image").attr('src', img.src);
             uploadcount++;
         }
+
         reader.readAsDataURL(e.target.files[0]);
     }
     //test
@@ -148,83 +196,71 @@
     ///    sharpen(context, width, height, mixFactor)
     ///  mixFactor: [0.0, 1.0]
     //binarization of image (threshold)
-
-
     //Drawing function
     function draw() {
+		//get image resize ratio
+		//canvas drawing is using original image resolution size,
+		//need to recalculate mouse down coords for getting the correct location of drawing in image
+		imgratioX = $("#dummy_image").width()/canvas.width;
+		imgratioY = $("#dummy_image").height()/canvas.height;
+		var letsdraw = false;
 
-
-               var letsdraw = false;
-
- 
-            var canvasOffset = $('#imageCanvas').offset();
-
-            $('#imageCanvas').mousemove(function (e) {
-                if (letsdraw === true) {
-                    ctx.lineTo(e.pageX - canvasOffset.left, e.pageY - canvasOffset.top);
-                    ctx.stroke();
-                }
-            });
-
-            $('#imageCanvas').mousedown(function (e) {
-                // setup all of the properties for your line on mousedown, not mousemove
-                letsdraw = true;
-                ctx.strokeStyle = 'red';
-                ctx.lineWidth = 10;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(e.pageX - canvasOffset.left, e.pageY - canvasOffset.top);
-            });
-
-            $(window).mouseup(function () {
-                // bind to the window mouse up, that way if you mouse up and you're not over 
-                // the canvas you'll still get the release of the drawing.
-                letsdraw = false;
-            });
-        };
+		var canvasOffset = $('#imageCanvas').offset();
+		$('#imageCanvas').on('mousemove.drawOnMousemove',function (e) {
+			if (letsdraw === true) {
+				ctx.lineTo(((e.pageX - canvasOffset.left)/imgratioX),((e.pageY - canvasOffset.top)/imgratioY));
+				ctx.stroke();
+			}
+		});
+		$('#imageCanvas').on('mousedown.drawOnMousedown',function (e) {
+			// setup all of the properties for your line on mousedown, not mousemove
+			letsdraw = true;
+			ctx.strokeStyle = 'red';
+			ctx.lineWidth = 5;
+			ctx.lineCap = 'round';
+			ctx.beginPath();
+			ctx.lineTo(((e.pageX - canvasOffset.left)/imgratioX),((e.pageY - canvasOffset.top)/imgratioY));
+		});
+		$(window).on('mouseup.drawOnMouseup',function () {
+			// bind to the window mouse up, that way if you mouse up and you're not over
+			// the canvas you'll still get the release of the drawing.
+			letsdraw = false;
+		});
+	};
         //$('#imageCanvas').mousedown(function (e) {
         //    var mouseX = e.pageX - this.offsetLeft;
         //    var mouseY = e.pageY - this.offsetTop;
-
         //    paint = true;
         //    addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
         //    redraw();
         //});
-
         //$('#imageCanvas').mousemove(function (e) {
         //    if (paint) {
         //        addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
         //        redraw();
         //    }
         //});
-
         //$('#imageCanvas').mouseup(function (e) {
         //    paint = false;
         //});
-
         //$('#imageCanvas').mouseleave(function (e) {
         //    paint = false;
         //});
-
         //var clickX = new Array();
         //var clickY = new Array();
         //var clickDrag = new Array();
         //var paint;
-
         //function addClick(x, y, dragging) {
         //    clickX.push(x);
         //    clickY.push(y);
         //    clickDrag.push(dragging);
         //}
-
         //function redraw() {
         //    //ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clears the canvas
-
         //    ctx.strokeStyle = "rgba(247, 2, 2, 0.66)";
         //    ctx.lineJoin = "round";
         //    ctx.lineWidth = 30;
-           
-           
+
 
         //    for (var i = 0; i < clickX.length; i++) {
         //        ctx.beginPath();
@@ -239,8 +275,6 @@
         //    }
         //}
 
-
-    
     function imbinarize() {
         var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         var data = imageData.data;
@@ -256,11 +290,9 @@
         for (var i = 0; i < data.length; i++) {
             if (data[i] < 128) {
                 data[i] = 0;
-
             }
             else {
                 data[i] = 255;
-
             }
         }
         // overwrite original image
@@ -272,7 +304,6 @@
     var sharpenparameters = []; // gloabl sharpen image function parameter storage for undo functionality.
     var sharpencall=0; // global sharpen call lets us know how many times the sharpen function has been called
     function sharpen() {
-
         var weights = [0, -1, 0, -1, 5, -1, 0, -1, 0],
             katet = Math.round(Math.sqrt(weights.length)),
             half = (katet * 0.5) | 0,
@@ -348,23 +379,24 @@
     }
     //test
     //Contrast Image
-
     /*
     undo() is used to go back to the previous image state per function call.
     */
-
     function undo() {
         var imageData = ctx_clone.getImageData(0, 0, clone.width, clone.height);
+		canvas.width = clone.width;
+		canvas.height = clone.height;
         ctx.putImageData(imageData, 0, 0);
 
+		jcrop_api.destroy();
+		$('#temp_image, #canvasThumbResult').remove();
+		$('#imageCanvas, #undoCanvas').show();
+		$('.crop_control').hide();
+		$("#dummy_image").attr('src', clone.toDataURL());
     }
-
-
-
     function grayscale() {
         var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         var data = imageData.data;
-
         for (var i = 0; i < data.length; i += 4) {
             var brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
             // red
@@ -379,8 +411,6 @@
         if (logtoprocesslist == true) {
             processingfunctions.push(grayscale);
         }
-
-
     }
     //Threshold Image
     function threshold() {
@@ -412,4 +442,137 @@
         //}
     }
 </script>
+<script type="text/javascript">
+var cropX, cropY, cropX2, cropY2, cropW, cropH;
+var jcrop_api, boundx, boundy;
+function cropImage(){
+	$('.crop_control').show();
+	$('#imageCanvas').before('<canvas id="canvasThumbResult" ></canvas>');
+	$('#temp_image').attr('src',canvas.toDataURL());
 
+	var temp_image = document.getElementById("temp_image");
+	var canvas2 = document.getElementById('canvasThumbResult');
+	var context2 = canvas2.getContext("2d");
+	canvas2.width = $("#temp_image").width();
+	canvas2.height = $("#temp_image").height();
+	context2.drawImage(temp_image, 0, 0);
+
+	$('#imageCanvas, #undoCanvas').hide();
+
+	function saveCoords(c) { // save crop coords
+		cropX = c.x;
+		cropY = c.y;
+		cropX2 = c.x2;
+		cropY2 = c.y2;
+		cropW = c.w;
+		cropH = c.h;
+	}
+	$('#canvasThumbResult').Jcrop({
+		onSelect: saveCoords,
+		bgFade: true,
+		bgColor:'white',
+		bgOpacity: .2,
+		setSelect: [ 0, 0, 220, 220 ],
+	},function(){
+		jcrop_api = this
+	});
+	$("#crop").on("click", function(){
+		var imgW = canvas.width,
+			imgH = canvas.height;
+
+		var ratioY = $('#dummy_image').height() / $('#temp_image').height(),
+			ratioX = $('#dummy_image').width() / $('#temp_image').width();
+
+		var getX = cropX / ratioX,
+ 			getY = cropY / ratioY,
+ 			getWidth = cropW / ratioX,
+ 			getHeight = cropH / ratioY;
+
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		canvas.width = getWidth;
+		canvas.height = getHeight;
+		ctx.drawImage(temp_image,getX,getY,getWidth,getHeight,0,0,getWidth,getHeight);
+		$("#dummy_image").attr('src', canvas.toDataURL());
+		context2.clearRect(0, 0, canvas2.width, canvas2.height);
+
+
+		jcrop_api.destroy();
+		$('#imageCanvas, #undoCanvas').show();
+		$('.crop_control').hide();
+	});
+
+	$("#cancel").on("click", function(){
+		context2.clearRect(0, 0, canvas2.width, canvas2.height);
+		jcrop_api.destroy();
+		$('#imageCanvas, #undoCanvas').show();
+		$('.crop_control').hide();
+	});
+}
+</script>
+<script>
+$('button:not(.draw)').click(function(){
+	$('#imageCanvas').off('mousemove.drawOnMousemove');
+	$('#imageCanvas').off('mousedown.drawOnMousedown');
+	$('#window').off('mouseup.drawOnMouseup');
+});
+$('button:not(.floodFill)').click(function(){
+	$('#imageCanvas').off('mousedown.floodFillGetPixel');
+});
+function download() {
+    window.open(canvas.toDataURL('image/png'));
+};
+
+function floodFill(){
+	$('#imageCanvas').on('mousedown.floodFillGetPixel',function(e){
+		imgratioX = $("#dummy_image").width()/canvas.width;
+		imgratioY = $("#dummy_image").height()/canvas.height;
+		canvasOffset = $('#imageCanvas').offset();
+
+		imgData = ctx.getImageData(e.pageX, e.pageY, 1, 1).data;
+		applyColor(e.pageX, e.pageY);
+		for(i=e.pageX;i>=0;i--){
+			var findImgData = ctx.getImageData(i, e.pageY, 1, 1).data;
+			if (imgData[0] == findImgData[0] && imgData[1] == findImgData[1] && imgData[2] == findImgData[2] && imgData[3] == findImgData[3] ){
+				applyColor(i, e.pageY);
+			}else{
+				break;
+			}
+		}
+
+		for(i=e.pageY;i>=0;i--){
+			var findImgData = ctx.getImageData(e.pageX, i, 1, 1).data;
+			if (imgData[0] == findImgData[0] && imgData[1] == findImgData[1] && imgData[2] == findImgData[2] && imgData[3] == findImgData[3] ){
+				applyColor(e.pageX, i);
+			}else{
+				break;
+			}
+		}
+
+		for(i=e.pageX;i<=canvas.width;i++){
+			var findImgData = ctx.getImageData(i, e.pageY, 1, 1).data;
+			if (imgData[0] == findImgData[0] && imgData[1] == findImgData[1] && imgData[2] == findImgData[2] && imgData[3] == findImgData[3] ){
+				applyColor(i, e.pageY);
+			}else{
+				break;
+			}
+		}
+
+		for(i=e.pageY;i<=canvas.height;i++){
+			var findImgData = ctx.getImageData(e.pageX, i, 1, 1).data;
+			if (imgData[0] == findImgData[0] && imgData[1] == findImgData[1] && imgData[2] == findImgData[2] && imgData[3] == findImgData[3] ){
+				applyColor(e.pageX, i);
+			}else{
+				break;
+			}
+		}
+	});
+}
+function applyColor(x,y){
+	ctx.strokeStyle = 'red';
+	ctx.lineWidth = 10;
+	ctx.lineCap = 'round';
+	ctx.beginPath();
+	ctx.lineTo(((x - canvasOffset.left)/imgratioX),((y - canvasOffset.top)/imgratioY));
+	ctx.stroke();
+}
+</script>
