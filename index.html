@@ -1,0 +1,622 @@
+﻿<!DOCTYPE html>
+<html>
+
+<!-- Code Created by Aditya Kelagar, Ghadeer Ibrahim, Nishant Sareen, Elliot Yeung -->
+<!-- The code is commented with the contribution of each member, but a lot of the functions are done together as a group -->
+
+<head>
+    <!-- Html and CSS code done by Aditya Kelagar -->
+    <!-- Tile of the website  -->
+    <title>webMIS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Using external style sheets for the user interface -->
+    <link rel="stylesheet" href="css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="css/jcrop.custom.css" />
+
+    <!-- Jquery library used for histogram and crop functions -->
+    <script src="script/jquery.min.js"></script>
+    <script src="script/jcrop.custom.js"></script>
+
+    <!-- CSS for different elements on the page  -->
+    <style media="screen" type="text/css">
+        body {
+            background-color: #121010;
+            color: white;
+        }
+
+        /*Main Canvas for the editing*/
+        #imageCanvas, #canvasThumbResult {
+            background-color: black;
+            max-width: 400px;
+            max-height: 400px;
+            margin: 25px;
+            align-content: inherit;
+        }
+
+       /*Canvas for undo fucntion and regference image*/
+        #undoCanvas {
+            background-color: black;
+            max-width: 400px;
+            max-height: 400px;
+            margin: 25px;
+            align-content: inherit;
+        }
+        /*Table used for the tools*/
+        table {
+            border: 1px solid white;
+        }
+
+        /*Buttons in the tool box*/
+        .button {
+            position: relative;
+            background-color: #121010;
+            border: none;
+            font-size: 18px;
+            color: #FFFFFF;
+            padding: 5px;
+            width: 200px;
+            text-align: center;
+            -webkit-transition-duration: 0.4s; /* Safari */
+            transition-duration: 0.4s;
+            text-decoration: none;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+            .button:hover {
+                background-color: #FF0000;
+                color: white;
+            }
+
+        #crop:hover {
+            background-color: rgba(16, 255, 0, 0.58);
+            color: white;
+        }
+
+        /*Headers for the page*/
+        h1.web {
+            margin: 0;
+            padding: 0;
+            color: #FF0000;
+            font-weight: bold;
+            font-family: Tahoma;
+            font-size: 40px;
+        }
+
+        span.MIS {
+            margin: 0;
+            padding: 0;
+            color: white;
+            font-weight: bold;
+            font-family: Calibri;
+            font-size: 60px;
+        }
+
+        h2.title {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Create four Canvases at the center of the page -->
+    <!-- Only Display two canvases while the other two are used as reference images for processing -->
+    <div class="w3-container">
+        <h1 class="web">web<span class="MIS">MIS</span></h1>
+        <h2 class="title" style="color:#9a9797">Web-based Medical Imaging Software</h2>
+        <div style="background-color:black; float:left; width:1250px;height:500px;border:1px solid #000;">
+            <div align="center" id="paint">
+                <canvas id="imageCanvas"></canvas>
+                <canvas id="undoCanvas"></canvas>
+                <canvas id="zoomCanvas" style="display:none;"></canvas>
+                <image id="dummy_image" style="max-width:400px;max-height:400px;display:none;" />
+                <image id="temp_image" style="display:none" />
+            </div>
+        </div>
+
+        <!-- Table for all the buttons to activate each function -->
+        <table style="float:right">
+            <tr>
+                <th style="font-size:28px">Tools</th>
+            </tr>
+            <tr>
+                <td><button class="button" onclick="threshold()"><i class="w3-margin-left fa fa-cog"></i><br />Threshold Image</button></td>
+            </tr>
+            <tr>
+                <td><button class="button" onclick="imbinarize()"><i class="w3-margin-left fa fa-adjust"></i><br />Binarize Image</button></td>
+            </tr>
+            <tr>
+                <td><button class="button draw" onclick="draw()"><i class="w3-margin-left fa fa-pencil"></i><br />Draw</button></td>
+            </tr>
+            <tr>
+                <td><button class="button" onclick="cropImage()"><i class="w3-margin-left fa fa-scissors"></i><br />Crop Image</button></td>
+            </tr>
+            <tr class="crop_control" style="display:none;">
+                <td>
+                    <button class="button" type="button" id="crop" name="crop" style="width:49%"><i class="w3-margin-left fa fa-check"></i><br />Confirm</button>
+                    <button class="button" type="button" id="cancel" name="cancel" style="width:49%"><i class="w3-margin-left fa fa-times"></i><br />Cancel</button>
+                </td>
+            </tr>
+            <tr>
+                <td><button class="button floodFill" onclick="floodFill()" style="display:none;"><i class="w3-margin-left fa fa-tint"></i><br />Flood Fill</button></td>
+            </tr>
+            <tr>
+                <td><button class="button" onclick="undo()"><i class="w3-margin-left fa fa-undo"></i><br />Undo</button></td>
+            </tr>
+            <tr>
+                <td><button class="button" onclick="download()"><i class="w3-margin-left fa fa-download"></i><br />download</button></td>
+            </tr>
+            <tr>
+                <td><button class="button" name="zoombtn" id="zoomcheck" onclick="drawZoomImg()"><i class="w3-margin-left fa fa-search-plus"></i><br />Enable zoom</button></td>
+            </tr>
+        </table>
+
+        <!-- Button to upload the image -->
+        <div style="float:left">
+            <p>Choose Image to edit:</p>
+            <input class="fa fa-upload" aria-hidden="true" type="file" id="imageLoader" name="imageLoader" accept="image/*" />
+        </div>
+    </div>
+
+</body>
+
+</html>
+
+<!-- Javascrit Codes used to do the processing of each function -->
+
+<script>
+
+    //Load Image onto all the Canvases - Aditya Kelagar
+    var imageLoaded = false;
+    var imageLoader = document.getElementById('imageLoader');
+    imageLoader.addEventListener('change', handleImage, false);
+    var canvas = document.getElementById('imageCanvas');
+    var clone = document.getElementById('undoCanvas');
+    var ctx_clone = clone.getContext('2d');
+    var ctx = canvas.getContext('2d');
+    var browsedimagedata = [];
+    var uploadcount = 0;
+    var imgratioY;
+    var imgratioX;
+
+    var cropX, cropY, cropX2, cropY2, cropW, cropH;
+    var jcrop_api, boundx, boundy;
+
+    function handleImage(e) {
+        imageLoaded = true;
+        if ($('#imageLoader').val() != '') {
+            var reader = new FileReader();
+            reader.onload = function (event) {
+                var img = new Image();
+                histolayer = img;
+                img.onload = function () {
+                    canvas.width = img.width;
+                    clone.width = img.width;
+                    canvas.height = img.height;
+                    clone.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    ctx_clone.drawImage(img, 0, 0);
+                }
+                img.src = event.target.result;
+                browsedimagedata.push(img.src);
+                $("#dummy_image").attr('src', img.src);
+                uploadcount++;
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    }
+    
+    //Drawing function - Aditya Kelagar
+    function draw() {
+        //get image resize ratio
+        //canvas drawing is using original image resolution size,
+        //need to recalculate mouse down coords for getting the correct location of drawing in image
+        if (!imageLoaded) { return false; } // prevent active function before loading image
+        imgratioX = $("#dummy_image").width() / canvas.width;
+        imgratioY = $("#dummy_image").height() / canvas.height;
+        var letsdraw = false;
+
+        var canvasOffset = $('#imageCanvas').offset();
+        $('#imageCanvas').on('mousemove.drawOnMousemove', function (e) {
+            if (letsdraw === true) {
+                ctx.lineTo(((e.pageX - canvasOffset.left) / imgratioX), ((e.pageY - canvasOffset.top) / imgratioY));
+                ctx.stroke();
+            }
+        });
+        $('#imageCanvas').on('mousedown.drawOnMousedown', function (e) {
+            // setup all of the properties for your line on mousedown, not mousemove
+            letsdraw = true;
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.lineTo(((e.pageX - canvasOffset.left) / imgratioX), ((e.pageY - canvasOffset.top) / imgratioY));
+        });
+        $(window).on('mouseup.drawOnMouseup', function () {
+            // bind to the window mouse up, that way if you mouse up and you're not over
+            // the canvas you'll still get the release of the drawing.
+            letsdraw = false;
+        });
+    };
+
+    //Binarize function - Ghadeer Ibrahim
+    function imbinarize() {
+        if (!imageLoaded) { return false; } // prevent active function before loading image
+        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var data = imageData.data;
+        for (var i = 0; i < data.length; i += 4) {
+            var brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            // red
+            data[i] = brightness;
+            // green
+            data[i + 1] = brightness;
+            // blue
+            data[i + 2] = brightness;
+        }
+        for (var i = 0; i < data.length; i++) {
+            if (data[i] < 128) {
+                data[i] = 0;
+            }
+            else {
+                data[i] = 255;
+            }
+        }
+        // overwrite original image
+        ctx.putImageData(imageData, 0, 0);
+        if (logtoprocesslist == true) {
+            processingfunctions.push(imbinarize);
+        }
+    }
+
+
+    //Undo Function - Aditya Kelagar
+    function undo() {
+        if (!imageLoaded) { return false; } // prevent active function before loading image
+        var imageData = ctx_clone.getImageData(0, 0, clone.width, clone.height);
+        canvas.width = clone.width;
+        canvas.height = clone.height;
+        ctx.putImageData(imageData, 0, 0);
+
+        clearCrop();
+        $("#dummy_image").attr('src', clone.toDataURL());
+    }
+
+
+    //Threshold Image Function - Aditya Kelagar (Group Work)
+    function threshold() {
+        if (!imageLoaded) { return false; } // prevent active function before loading image
+        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var data = imageData.data;
+        var factor = (259 * (30 + 255)) / (255 * (259 - 30));
+        for (var i = 0; i < data.length; i += 4) {
+            data[i] = factor * (data[i] - 128) + 128;
+            data[i + 1] = factor * (data[i + 1] - 128) + 128;
+            data[i + 2] = factor * (data[i + 2] - 128) + 128;
+        }
+        // overwrite original image
+        ctx.putImageData(imageData, 0, 0);
+        if (logtoprocesslist == true) {
+            processingfunctions.push(threshold);
+        }
+    }
+
+    //Crop Fucntion - Elliot Yeung
+    function cropImage() {
+        if (!imageLoaded) { return false; } // prevent active function before loading image
+        if ($('.jcrop-holder').html()) { return false; } // prevent multi crop initialise
+        $('.crop_control').show();
+
+        $('#imageCanvas').before('<canvas id="canvasThumbResult" ></canvas>');
+        $('#imageCanvas').css('visibility', 'hidden');
+        $('#temp_image').attr('src', canvas.toDataURL());
+
+        var temp_image = document.getElementById("temp_image");
+        var canvas2 = document.getElementById('canvasThumbResult');
+        var context2 = canvas2.getContext("2d");
+        canvas2.width = $("#temp_image").width();
+        canvas2.height = $("#temp_image").height();
+        context2.drawImage(temp_image, 0, 0);
+
+        function saveCoords(c) { // save crop coords
+            cropX = c.x;
+            cropY = c.y;
+            cropX2 = c.x2;
+            cropY2 = c.y2;
+            cropW = c.w;
+            cropH = c.h;
+        }
+
+        if ($('#dummy_image').height() < 100) {
+            var setSelectHeight = $('#dummy_image').height();
+        } else {
+            var setSelectHeight = 100;
+        }
+        if ($('#dummy_image').width() < 100) {
+            var setSelectWidth = $('#dummy_image').width();
+        } else {
+            var setSelectWidth = 100;
+        }
+
+
+        $('#canvasThumbResult').Jcrop({
+            onSelect: saveCoords,
+            bgFade: true,
+            bgColor: 'white',
+            bgOpacity: .2,
+            setSelect: [0, 0, setSelectWidth, setSelectHeight],
+        }, function () {
+            $('.jcrop-holder').css('left', $('#imageCanvas').offset().left);
+            jcrop_api = this
+        });
+        $("#crop").on("click", function () {
+            var imgW = canvas.width,
+                imgH = canvas.height;
+
+            var ratioY = $('#dummy_image').height() / $('#temp_image').height(),
+                ratioX = $('#dummy_image').width() / $('#temp_image').width();
+
+            var getX = cropX / ratioX,
+                getY = cropY / ratioY,
+                getWidth = cropW / ratioX,
+                getHeight = cropH / ratioY;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.width = getWidth;
+            canvas.height = getHeight;
+            ctx.drawImage(temp_image, getX, getY, getWidth, getHeight, 0, 0, getWidth, getHeight);
+            $("#dummy_image").attr('src', canvas.toDataURL());
+            context2.clearRect(0, 0, canvas2.width, canvas2.height);
+
+
+            clearCrop();
+        });
+
+        $("#cancel").on("click", function () {
+            context2.clearRect(0, 0, canvas2.width, canvas2.height);
+            clearCrop();
+        });
+    }
+    function clearCrop() {
+        jcrop_api.destroy();
+        $('#imageCanvas').css('visibility', '');
+        $('#imageCanvas, #undoCanvas').show();
+        $('.crop_control').hide();
+    }
+
+
+    $('button:not(.draw)').click(function () {
+        $('#imageCanvas').off('mousemove.drawOnMousemove');
+        $('#imageCanvas').off('mousedown.drawOnMousedown');
+        $('#window').off('mouseup.drawOnMouseup');
+    });
+    $('button:not(.floodFill)').click(function () {
+        $('#imageCanvas').off('mousedown.floodFillGetPixel');
+    });
+    function download() {
+        window.open(canvas.toDataURL('image/png'));
+    };
+
+    
+
+    //Zoom Function - Nishant Sareen
+    var zoombtn = document.getElementById('zoomcheck');
+    zoombtn.addEventListener('change', drawZoomImg);
+    function drawZoomImg() {
+        var zoomctx = document.getElementById('undoCanvas').getContext('2d');
+        var zoom = document.getElementById('undoCanvas');
+        zoom.height = canvas.height;
+        zoom.width = canvas.width;
+        zoomctx.imageSmoothingEnabled = true;
+        //zoomctx.mozImageSmoothingEnabled = true;
+        zoomctx.webkitImageSmoothingEnabled = true;
+        zoomctx.msImageSmoothingEnabled = true;
+        function getPosition(el) {
+            var xPos = 0;
+            var yPos = 0;
+
+            while (el) {
+                if (el.tagName == "BODY") {
+                    // deal with browser quirks with body/window/document and page scroll
+                    var xScroll = el.scrollLeft || document.documentElement.scrollLeft;
+                    var yScroll = el.scrollTop || document.documentElement.scrollTop;
+
+                    xPos += (el.offsetLeft - xScroll + el.clientLeft);
+                    yPos += (el.offsetTop - yScroll + el.clientTop);
+                } else {
+                    // for all other non-BODY elements
+                    xPos += (el.offsetLeft - el.scrollLeft + el.clientLeft);
+                    yPos += (el.offsetTop - el.scrollTop + el.clientTop);
+                }
+
+                el = el.offsetParent;
+            }
+            return {
+                x: xPos,
+                y: yPos
+            };
+        }
+        var myElement = document.querySelector("#imageCanvas");
+        var position = getPosition(myElement);
+
+        var zoom = function (event) {
+            //position = getPosition(myElement);
+            var x = event.layerX - position.x - 10; //event.layerX-position.x-canvas.width+150
+            var y = event.layerY - position.y + 20; //event.layerY-position.y+20
+            zoomctx.drawImage(canvas,
+                              Math.abs(x - 10),//Math.abs(x-10)
+                              Math.abs(y - 10), // Math.abs(y-10)
+                              100, 100,
+                              0, 0,
+                              canvas.width, canvas.height);
+        };
+
+        canvas.addEventListener('mousemove', zoom);
+    }
+</script>
+
+<!-- Below are the fucntions that have working functioning code, but were not itegrated with the website due to time constraints. --> 
+<!--   With a bit of modification they can be easily implemented. -->
+<script>
+
+    //FloodFill function - Elliot Yeung
+    function floodFill() {
+        if (!imageLoaded) { return false; } // prevent active function before loading image
+        $('#imageCanvas').on('mousedown.floodFillGetPixel', function (e) {
+            imgratioX = $("#dummy_image").width() / canvas.width;
+            imgratioY = $("#dummy_image").height() / canvas.height;
+            canvasOffset = $('#imageCanvas').offset();
+
+            imgData = ctx.getImageData(e.pageX, e.pageY, 1, 1).data;
+            applyColor(e.pageX, e.pageY);
+            for (i = e.pageX; i >= 0; i--) {
+                var findImgData = ctx.getImageData(i, e.pageY, 1, 1).data;
+                if (imgData[0] == findImgData[0] && imgData[1] == findImgData[1] && imgData[2] == findImgData[2] && imgData[3] == findImgData[3]) {
+                    applyColor(i, e.pageY);
+                } else {
+                    break;
+                }
+            }
+
+            for (i = e.pageY; i >= 0; i--) {
+                var findImgData = ctx.getImageData(e.pageX, i, 1, 1).data;
+                if (imgData[0] == findImgData[0] && imgData[1] == findImgData[1] && imgData[2] == findImgData[2] && imgData[3] == findImgData[3]) {
+                    applyColor(e.pageX, i);
+                } else {
+                    break;
+                }
+            }
+
+            for (i = e.pageX; i <= canvas.width; i++) {
+                var findImgData = ctx.getImageData(i, e.pageY, 1, 1).data;
+                if (imgData[0] == findImgData[0] && imgData[1] == findImgData[1] && imgData[2] == findImgData[2] && imgData[3] == findImgData[3]) {
+                    applyColor(i, e.pageY);
+                } else {
+                    break;
+                }
+            }
+
+            for (i = e.pageY; i <= canvas.height; i++) {
+                var findImgData = ctx.getImageData(e.pageX, i, 1, 1).data;
+                if (imgData[0] == findImgData[0] && imgData[1] == findImgData[1] && imgData[2] == findImgData[2] && imgData[3] == findImgData[3]) {
+                    applyColor(e.pageX, i);
+                } else {
+                    break;
+                }
+            }
+        });
+    }
+    function applyColor(x, y) {
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 10;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.lineTo(((x - canvasOffset.left) / imgratioX), ((y - canvasOffset.top) / imgratioY));
+        ctx.stroke();
+    }
+
+    //Histogram Fucntion - Nishant Sareen
+    function load() {
+        var image = this,
+            width = image.width,
+            height = image.height,
+            data = [],
+
+            brushsize = 6,
+            x = d3.scale.linear().range([0, width - brushsize]),
+            y = d3.scale.linear().range([brushsize, height - brushsize]),
+
+            rgb = d3.scale.ordinal().domain(d3.range(3)).range(["red", "green", "blue"]),
+            xH = d3.scale.linear().domain([0, 255]).range([0, width]),
+            yH = d3.scale.linear().range([0, height / 1.2]);
+
+        var svg, canvas, histo;
+
+        var empty = Array(256);
+        for (var i = 0; i < 256; i++) { empty[i] = 0; }
+
+        function histogram(extent, context) {
+            var x = width * extent[0][0],
+                y = height * extent[0][1],
+                w = width * (extent[1][0] - extent[0][0]),
+                h = height * (extent[1][1] - extent[0][1]),
+                p = context.getImageData(x, y, w, h).data,
+                d = d3.range(3).map(function () {
+                    return empty.slice();
+                });
+
+            i = 0;
+            do {
+                d[0][p[i++]]++;
+                d[1][p[i++]]++;
+                d[2][p[i++]]++;
+                i++; // alpha
+            } while (i < p.length)
+
+            var max = Math.max(d3.max(d[0]), d3.max(d[1]), d3.max(d[2]));
+            yH.domain([0, max]);
+
+            return d;
+        }
+
+        function brushmove() {
+            canvas.each(function () {
+                data = histogram(brush.extent(), this.context);
+                redraw();
+            });
+        }
+
+        function draw() {
+            histo = svg.selectAll(".histo")
+              .data(data).enter()
+              .append("path")
+              .attr("class", "histo")
+              .attr("fill", function (d, i) { return rgb(i); })
+              .attr("stroke", function (d, i) { return rgb(i); });
+            redraw();
+        }
+
+        function redraw() {
+            histo.data(data).attr("d", area);
+        }
+
+        var area = d3.svg.area()
+          .x(function (d, i) { return xH(i); })
+          .y0(height)
+          .y1(function (d) { return height - yH(d); })
+          .interpolate("basis");
+
+        var brush = d3.svg.brush()
+          .x(x)
+          .y(y)
+          .extent([[.4, .4], [.6, .6]])
+          .on("brush", brushmove);
+
+        svg = d3.select("#main")
+          .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+          .append("g")
+
+        canvas = d3.select("#main")
+          .append("canvas")
+          .attr("width", width)
+          .attr("height", height)
+          .each(function () {
+              this.context = this.getContext('2d');
+              this.context.drawImage(image, 0, 0);
+              data = histogram(brush.extent(), this.context);
+              draw();
+          });
+
+        svg.append("g")
+            .attr("class", "brush")
+            .call(brush);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var image = new Image();
+        image.src = 'brainmri.png';
+        image.addEventListener("load", load);
+    });
+</script>
